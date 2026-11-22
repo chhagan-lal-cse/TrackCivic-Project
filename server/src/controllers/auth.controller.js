@@ -86,3 +86,70 @@ export const changePassword = asyncHandler(async (req, res) => {
   await user.save();
   return sendSuccess(res, { message: 'Password changed' });
 });
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const email = (req.body.email || '').trim().toLowerCase();
+  if (!email) throw ApiError.badRequest('Email address is required');
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw ApiError.notFound('No account found with this email address');
+  }
+  if (!user.isActive) {
+    throw ApiError.forbidden('This account is deactivated. Contact administration.');
+  }
+
+  // Generate 6-digit verification code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  user.resetPasswordCode = code;
+  user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
+  await user.save();
+
+  return sendSuccess(res, {
+    message: 'Verification code generated successfully',
+    data: {
+      email: user.email,
+      code,
+      expiresInMinutes: 15,
+    },
+  });
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanCode = (code || '').trim();
+  const cleanPass = (newPassword || '').trim();
+
+  if (!cleanEmail || !cleanCode || !cleanPass) {
+    throw ApiError.badRequest('Email, verification code, and new password are required');
+  }
+  if (cleanPass.length < 8) {
+    throw ApiError.unprocessable('Password must be at least 8 characters long', [
+      { field: 'newPassword', message: 'Password must be at least 8 characters long' },
+    ]);
+  }
+
+  const user = await User.findOne({ email: cleanEmail }).select('+resetPasswordCode +resetPasswordExpires');
+  if (!user) {
+    throw ApiError.notFound('Account not found');
+  }
+
+  if (!user.resetPasswordCode || user.resetPasswordCode !== cleanCode) {
+    throw ApiError.badRequest('Invalid verification code');
+  }
+
+  if (user.resetPasswordExpires && user.resetPasswordExpires < new Date()) {
+    throw ApiError.badRequest('Verification code has expired. Please request a new one.');
+  }
+
+  user.passwordHash = await User.hashPassword(cleanPass);
+  user.resetPasswordCode = undefined;
+  user.resetPasswordExpires = undefined;
+  user.isActive = true;
+  await user.save();
+
+  return sendSuccess(res, {
+    message: 'Password reset successfully. You can now log in with your new password.',
+  });
+});

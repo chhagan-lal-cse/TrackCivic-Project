@@ -142,33 +142,37 @@ export const staffChangeStatus = asyncHandler(async (req, res) => {
   const { status, publicMessage, internalNote } = req.body;
   const previousStatus = complaint.status;
 
-  if (previousStatus === 'Rejected' || previousStatus === 'Resolved') {
-    throw ApiError.conflict(`Cannot change status of a ${previousStatus.toLowerCase()} complaint`);
+  if (previousStatus === 'Rejected') {
+    throw ApiError.conflict('Cannot update a rejected complaint');
   }
 
-  const allowed = allowedNextStatuses(previousStatus);
-  if (!allowed.includes(status)) {
-    throw ApiError.unprocessable(`Invalid transition: ${previousStatus} -> ${status}`);
+  const newStatus = status || previousStatus;
+  const validStaffStatuses = ['In Progress', 'Resolved', 'Under Review'];
+  if (status && !validStaffStatuses.includes(status)) {
+    throw ApiError.unprocessable(`Staff can only update tasks to In Progress or Resolved`);
   }
 
-  complaint.status = status;
-  if (status === 'Resolved') {
-    complaint.resolvedAt = new Date();
+  complaint.status = newStatus;
+  if (newStatus === 'Resolved') {
+    if (!complaint.resolvedAt) complaint.resolvedAt = new Date();
+  } else {
+    complaint.resolvedAt = null;
   }
+  complaint.updatedAt = new Date();
   await complaint.save();
 
   await recordActivity({
     complaint,
     actor: req.user,
-    action: ACTIVITY_ACTIONS.STATUS_CHANGED,
+    action: newStatus !== previousStatus ? ACTIVITY_ACTIONS.STATUS_CHANGED : ACTIVITY_ACTIONS.PUBLIC_UPDATE,
     previousStatus,
-    newStatus: status,
-    publicMessage: publicMessage || `Field staff updated status to ${status}`,
+    newStatus,
+    publicMessage: publicMessage || `Field staff report: status is ${newStatus}`,
     internalNote: internalNote || '',
     visibleToCitizen: true,
   });
 
-  return sendSuccess(res, { message: `Status updated to ${status}`, data: { complaint } });
+  return sendSuccess(res, { message: `Task updated to ${newStatus}`, data: { complaint } });
 });
 
 export const getComplaint = asyncHandler(async (req, res) => {

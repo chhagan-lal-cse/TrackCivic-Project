@@ -128,6 +128,9 @@ export default function LoginPage() {
                 <label htmlFor="citizen-password" className="form-label mb-0">
                   Password <span className="text-danger">*</span>
                 </label>
+                <Link to="/forgot-password" className="small text-teal text-decoration-none fw-semibold">
+                  Forgot password?
+                </Link>
               </div>
               <div className="input-group">
                 <input

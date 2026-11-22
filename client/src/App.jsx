@@ -9,6 +9,7 @@ import HomePage from './pages/public/HomePage.jsx';
 import LoginPage from './pages/public/LoginPage.jsx';
 import RoleLoginPage from './pages/public/RoleLoginPage.jsx';
 import RegisterPage from './pages/public/RegisterPage.jsx';
+import ForgotPasswordPage from './pages/public/ForgotPasswordPage.jsx';
 import AboutPage from './pages/public/AboutPage.jsx';
 import HelpPage from './pages/public/HelpPage.jsx';
 import TrackComplaintPage from './pages/public/TrackComplaintPage.jsx';
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="login/citizen" element={<LoginPage />} />
         <Route path="login/admin" element={<RoleLoginPage role="admin" />} />
         <Route path="login/staff" element={<RoleLoginPage role="staff" />} />
+        <Route path="forgot-password" element={<ForgotPasswordPage />} />
         <Route path="register" element={<RegisterPage />} />
       </Route>
 
@@ -67,7 +69,8 @@ export default function App() {
 
       <Route path="staff" element={<ProtectedRoute role="staff"><DashboardLayout /></ProtectedRoute>}>
         <Route index element={<StaffDashboard />} />
-        <Route path="profile" element={<StaffDashboard />} />
+        <Route path="complaints/:id" element={<ComplaintDetails />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route element={<PublicLayout />}>

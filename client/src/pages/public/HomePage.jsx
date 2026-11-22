@@ -203,18 +203,57 @@ export default function HomePage() {
           </div>
           <div className="tc-process">
             {[
-              ['01', 'Submit', 'Add description, category and image evidence.', 'bi-send-fill', 'text-teal'],
-              ['02', 'Review', 'Administrator verifies urgency and assigns department.', 'bi-eye-fill', 'text-indigo'],
-              ['03', 'Act', 'Maintenance crew conducts field repair and logs notes.', 'bi-tools', 'text-warning'],
-              ['04', 'Resolve', 'Issue resolved and transparently closed with timestamp.', 'bi-check-all', 'text-success'],
-            ].map(([number, title, text, icon, iconColor], index) => (
-              <article className={`tc-process-step ${index === 1 ? 'is-active' : ''}`} key={number}>
-                <div className="d-flex align-items-center justify-content-between mb-2">
-                  <span className="tc-step-num">{number}</span>
-                  <i className={`bi ${icon} ${iconColor} fs-4`} />
+              {
+                number: '01',
+                title: 'Submit Report',
+                text: 'Citizens log neighborhood issues with description, category, and photo evidence.',
+                icon: 'bi-send-fill',
+                theme: 'teal',
+                bg: '#ccfbf1',
+                color: '#0f766e',
+              },
+              {
+                number: '02',
+                title: 'Triage & Review',
+                text: 'Administration verifies urgency, department jurisdiction, and logs acceptance.',
+                icon: 'bi-search',
+                theme: 'indigo',
+                bg: '#e0e7ff',
+                color: '#4338ca',
+              },
+              {
+                number: '03',
+                title: 'Field Team Action',
+                text: 'Assigned field officer conducts on-site maintenance and records progress reports.',
+                icon: 'bi-tools',
+                theme: 'amber',
+                bg: '#fef3c7',
+                color: '#b45309',
+              },
+              {
+                number: '04',
+                title: 'Verified Resolution',
+                text: 'Work is completed and permanently timestamped on the public resolution record.',
+                icon: 'bi-check-circle-fill',
+                theme: 'emerald',
+                bg: '#d1fae5',
+                color: '#047857',
+              },
+            ].map((step) => (
+              <article className={`tc-process-step tc-step-${step.theme}`} key={step.number}>
+                <div className="d-flex align-items-center justify-content-between mb-3">
+                  <span className="tc-step-num" style={{ color: step.color }}>
+                    STAGE {step.number}
+                  </span>
+                  <div
+                    className="rounded-circle d-flex align-items-center justify-content-center shadow-sm"
+                    style={{ width: 44, height: 44, background: step.bg, color: step.color }}
+                  >
+                    <i className={`bi ${step.icon} fs-5`} />
+                  </div>
                 </div>
-                <h3>{title}</h3>
-                <p>{text}</p>
+                <h3 className="h5 fw-bold text-dark mb-2">{step.title}</h3>
+                <p className="text-muted small mb-0">{step.text}</p>
               </article>
             ))}
           </div>

@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { ACTIVITY_ACTIONS, STATUSES } from '../utils/constants.js';
+import { ACTIVITY_ACTIONS, ROLES, STATUSES } from '../utils/constants.js';
 
 /**
  * Append-only activity log for complaints. Every status change, assignment,
@@ -9,7 +9,7 @@ const activitySchema = new mongoose.Schema(
   {
     complaintId: { type: mongoose.Schema.Types.ObjectId, ref: 'Complaint', required: true },
     actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    actorRole: { type: String, enum: ['citizen', 'admin'], required: true },
+    actorRole: { type: String, enum: Object.values(ROLES), required: true },
     action: { type: String, enum: Object.values(ACTIVITY_ACTIONS), required: true },
     previousStatus: { type: String, enum: [...STATUSES, null], default: null },
     newStatus: { type: String, enum: [...STATUSES, null], default: null },

@@ -22,6 +22,8 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, trim: true, maxlength: 20, default: '' },
     isActive: { type: Boolean, default: true, index: true },
     lastLoginAt: { type: Date },
+    resetPasswordCode: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false },
   },
   {
     timestamps: true,

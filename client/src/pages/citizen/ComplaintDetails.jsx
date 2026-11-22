@@ -21,10 +21,10 @@ import { formatDateTime } from '../../utils/format.js';
 /** Complaint details for both citizens (owner) and administrators. */
 export default function ComplaintDetails() {
   const { id } = useParams();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isStaff } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const base = isAdmin ? '/admin/complaints' : '/dashboard/complaints';
+  const base = isAdmin ? '/admin/complaints' : isStaff ? '/staff' : '/dashboard/complaints';
 
   const { data, loading, error, reload, status } = useAsync(() => complaintService.get(id), [id]);
   useDocumentTitle(data?.complaint?.referenceNumber || 'Complaint');

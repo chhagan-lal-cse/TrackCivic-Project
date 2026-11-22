@@ -206,23 +206,26 @@ export default function StaffDashboard() {
                     <td>
                       <small className="text-muted">{timeAgo(c.updatedAt)}</small>
                     </td>
-                    <td className="text-end">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-teal shadow-sm me-1"
-                        onClick={() => handleOpenUpdate(c)}
-                        disabled={c.status === 'Resolved' || c.status === 'Rejected'}
-                      >
-                        <i className="bi bi-pencil-square me-1" />
-                        Update Work
-                      </button>
-                      <Link
-                        to={`/admin/complaints/${c._id}`}
-                        className="btn btn-sm btn-outline-secondary"
-                        title="View Full History"
-                      >
-                        <i className="bi bi-eye" />
-                      </Link>
+                    <td className="text-end text-nowrap">
+                      <div className="d-inline-flex align-items-center gap-1">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-teal shadow-sm"
+                          onClick={() => handleOpenUpdate(c)}
+                          disabled={c.status === 'Rejected'}
+                          title="Update Work Status & Field Notes"
+                        >
+                          <i className="bi bi-pencil-square me-1" />
+                          Update Work
+                        </button>
+                        <Link
+                          to={`/staff/complaints/${c._id}`}
+                          className="btn btn-sm btn-outline-secondary"
+                          title="View Full Task Details & Incident Location"
+                        >
+                          <i className="bi bi-eye" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

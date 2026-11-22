@@ -10,6 +10,8 @@ const limiter = authLimiter();
 
 router.post('/register', limiter, registerRules, validate, auth.register);
 router.post('/login', limiter, loginRules, validate, auth.login);
+router.post('/forgot-password', limiter, auth.forgotPassword);
+router.post('/reset-password', limiter, auth.resetPassword);
 router.post('/admin/login', limiter, loginRules, validate, auth.adminLogin);
 router.post('/staff/login', limiter, loginRules, validate, auth.staffLogin);
 router.post('/logout', auth.logout);

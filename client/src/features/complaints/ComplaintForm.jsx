@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import FormInput from '../../components/FormInput.jsx';
 import LocationPicker from '../../components/LocationPicker.jsx';
 import { CATEGORIES, MAX_IMAGE_MB, PRIORITIES } from '../../utils/constants.js';
@@ -10,6 +10,10 @@ const EMPTY = { title: '', description: '', category: '', priority: 'Medium', ad
 /**
  * Shared create/edit form. Client-side validation mirrors the server rules;
  * server errors (422) are passed back in through `serverErrors`.
+ *
+ * NOTE: onLocationChange is memoized with useCallback so LocationPicker
+ * (which is React.memo-wrapped) does not re-mount when other form fields change.
+ * This prevents the map from refreshing on every keystroke.
  */
 export default function ComplaintForm({
   initialValues, existingAttachmentUrl, submitLabel, busy, serverErrors = {}, onSubmit, onCancel,
@@ -19,7 +23,6 @@ export default function ComplaintForm({
   const [preview, setPreview] = useState(null);
   const [removeAttachment, setRemoveAttachment] = useState(false);
   const [errors, setErrors] = useState({});
-  const [locating, setLocating] = useState(false);
 
   useEffect(() => { setErrors((e) => ({ ...e, ...serverErrors })); }, [serverErrors]);
 
@@ -49,25 +52,19 @@ export default function ComplaintForm({
     setRemoveAttachment(false);
   };
 
-  const useMyLocation = () => {
-    if (!navigator.geolocation) {
-      setErrors((er) => ({ ...er, latitude: 'Your browser does not support location access. Enter coordinates manually or leave them empty.' }));
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setValues((v) => ({ ...v, latitude: pos.coords.latitude.toFixed(6), longitude: pos.coords.longitude.toFixed(6) }));
-        setErrors((er) => ({ ...er, latitude: undefined, longitude: undefined }));
-        setLocating(false);
-      },
-      () => {
-        setErrors((er) => ({ ...er, latitude: 'Location permission was denied. Coordinates are optional.' }));
-        setLocating(false);
-      },
-      { timeout: 10000 },
-    );
-  };
+  // Stable callback — LocationPicker is memo-wrapped and will NOT re-mount
+  // when this callback's closure captures updated `setValues` via functional update.
+  const handleLocationChange = useCallback(({ latitude, longitude, address, city }) => {
+    setValues((v) => ({
+      ...v,
+      latitude: latitude ?? '',
+      longitude: longitude ?? '',
+      // Only auto-fill address/city if the user hasn't typed anything yet
+      address: v.address ? v.address : (address || v.address),
+      city: v.city ? v.city : (city || v.city),
+    }));
+    setErrors((er) => ({ ...er, latitude: undefined, longitude: undefined }));
+  }, []); // empty deps — uses functional setValues, so no stale closure
 
   const submit = (e) => {
     e.preventDefault();
@@ -120,16 +117,7 @@ export default function ComplaintForm({
             <LocationPicker
               latitude={values.latitude}
               longitude={values.longitude}
-              onLocationChange={({ latitude, longitude, address, city }) => {
-                setValues((v) => ({
-                  ...v,
-                  latitude: latitude ?? '',
-                  longitude: longitude ?? '',
-                  address: v.address ? v.address : (address || v.address),
-                  city: v.city ? v.city : (city || v.city),
-                }));
-                setErrors((er) => ({ ...er, latitude: undefined, longitude: undefined }));
-              }}
+              onLocationChange={handleLocationChange}
             />
           </div>
         </div>

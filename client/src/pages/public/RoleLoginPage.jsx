@@ -111,7 +111,7 @@ export default function RoleLoginPage({ role = 'admin' }) {
               type="email"
               label="Work email address"
               autoComplete="email"
-              placeholder={admin ? 'admin@civicfix.local' : 'staff@civicfix.local'}
+              placeholder={admin ? 'admin@trackcivic.local' : 'staff@trackcivic.local'}
               required
               value={values.email}
               onChange={change('email')}
@@ -123,6 +123,9 @@ export default function RoleLoginPage({ role = 'admin' }) {
                 <label htmlFor={`${role}-password`} className="form-label mb-0">
                   Password <span className="text-danger">*</span>
                 </label>
+                <Link to="/forgot-password" className="small text-decoration-none fw-semibold text-primary">
+                  Forgot password?
+                </Link>
               </div>
               <div className="input-group">
                 <input

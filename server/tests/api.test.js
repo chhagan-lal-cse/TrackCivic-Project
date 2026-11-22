@@ -66,7 +66,7 @@ describe('authentication', () => {
     assert.equal(res.status, 201);
     assert.equal(res.body.data.user.passwordHash, undefined);
     const cookie = res.headers['set-cookie'].join(';');
-    assert.match(cookie, /civicfix_token=/);
+    assert.match(cookie, /trackcivic_token=/);
     assert.match(cookie, /HttpOnly/i);
   });
 

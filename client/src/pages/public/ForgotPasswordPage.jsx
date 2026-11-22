@@ -71,8 +71,8 @@ export default function ForgotPasswordPage() {
         code: code.trim(),
         newPassword,
       });
-      toast.success('Password updated successfully! You can now log in.');
-      navigate('/login/citizen', { replace: true });
+      toast.success('Password updated successfully!');
+      setStep(3); // Show Success Portal Switcher
     } catch (err) {
       setFieldErrors(getFieldErrors(err));
       setError(getErrorMessage(err, 'Failed to reset password.'));
@@ -107,7 +107,7 @@ export default function ForgotPasswordPage() {
 
           <ErrorMessage message={error} />
 
-          {step === 1 ? (
+          {step === 1 && (
             /* Step 1: Request Reset Code */
             <form onSubmit={handleRequestCode} noValidate className="d-grid gap-3">
               <FormInput
@@ -143,7 +143,9 @@ export default function ForgotPasswordPage() {
                 )}
               </button>
             </form>
-          ) : (
+          )}
+
+          {step === 2 && (
             /* Step 2: Enter Code & New Password */
             <form onSubmit={handleResetPassword} noValidate className="d-grid gap-3">
               {generatedCode && (
@@ -247,12 +249,56 @@ export default function ForgotPasswordPage() {
             </form>
           )}
 
-          <div className="tc-auth-switch pt-3 mt-4 border-top d-flex justify-content-between align-items-center small">
-            <span className="text-muted">Remembered your password?</span>
-            <Link to="/login/citizen" className="fw-bold text-teal">
-              Back to Login
-            </Link>
-          </div>
+          {step === 3 && (
+            /* Step 3: Success Portal Options */
+            <div className="text-center py-2">
+              <div
+                className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                style={{ width: 64, height: 64, background: '#dcfce7', color: '#16a34a', fontSize: '2rem' }}
+              >
+                <i className="bi bi-check-lg" />
+              </div>
+
+              <h2 className="h4 fw-bold text-dark mb-2">Password Reset Complete!</h2>
+              <p className="text-muted small mb-4">
+                Your new password has been securely saved. Please select your workspace portal to log in:
+              </p>
+
+              <div className="d-grid gap-2">
+                <Link to="/login/citizen" className="btn btn-citizen-card btn-lg">
+                  <i className="bi bi-person-circle me-2" />
+                  Sign In to Citizen Portal
+                </Link>
+                <Link to="/login/admin" className="btn btn-admin-card btn-lg">
+                  <i className="bi bi-shield-lock-fill me-2" />
+                  Sign In to Admin Portal
+                </Link>
+                <Link to="/login/staff" className="btn btn-outline-indigo btn-lg">
+                  <i className="bi bi-tools me-2" />
+                  Sign In to Field Staff Portal
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {step !== 3 && (
+            <div className="tc-auth-switch pt-3 mt-4 border-top">
+              <span className="small text-muted d-block mb-2">Return to login portals:</span>
+              <div className="d-flex flex-wrap gap-3 small">
+                <Link to="/login/citizen" className="text-teal text-decoration-none fw-semibold">
+                  <i className="bi bi-person me-1" />Citizen
+                </Link>
+                <span className="text-muted">•</span>
+                <Link to="/login/admin" className="text-indigo text-decoration-none fw-semibold">
+                  <i className="bi bi-shield-lock me-1" />Admin
+                </Link>
+                <span className="text-muted">•</span>
+                <Link to="/login/staff" className="text-warning text-decoration-none fw-semibold">
+                  <i className="bi bi-tools me-1" />Staff
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

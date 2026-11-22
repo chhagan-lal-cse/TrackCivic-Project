@@ -18,7 +18,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && !error.config?.skipAuthEvent) {
-      window.dispatchEvent(new CustomEvent('civicfix:unauthorized', { detail: error.response.data?.message }));
+      window.dispatchEvent(new CustomEvent('trackcivic:unauthorized', { detail: error.response.data?.message }));
     }
     return Promise.reject(error);
   },

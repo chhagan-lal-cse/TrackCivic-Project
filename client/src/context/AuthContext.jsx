@@ -32,8 +32,8 @@ export function AuthProvider({ children }) {
       const loginPath = window.location.pathname.startsWith('/admin') ? '/login/admin' : '/login/citizen';
       navigate(loginPath, { replace: true, state: { from: window.location.pathname } });
     };
-    window.addEventListener('civicfix:unauthorized', onUnauthorized);
-    return () => window.removeEventListener('civicfix:unauthorized', onUnauthorized);
+    window.addEventListener('trackcivic:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('trackcivic:unauthorized', onUnauthorized);
   }, [navigate, toast]);
 
   const login = useCallback(async (credentials, role = 'citizen') => {

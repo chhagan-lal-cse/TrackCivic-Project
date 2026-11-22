@@ -37,7 +37,7 @@ const DEMO_ADMIN = {
 };
 const DEMO_STAFF = {
   name: 'Ramesh Field Officer',
-  email: 'staff@civicfix.local',
+  email: 'staff@trackcivic.local',
   password: 'Staff@123',
   phone: '+91 98111 22334',
 };
@@ -215,7 +215,7 @@ async function main() {
 
   console.log('\nDemo credentials (development only):');
   console.log(`  Admin email: ${DEMO_ADMIN.email} (password is read from server configuration, default: Admin@123)`);
-  console.log(`  Field Staff: staff@civicfix.local / Staff@123`);
+  console.log(`  Field Staff: staff@trackcivic.local / Staff@123`);
   console.log(`  Citizen: ${CITIZENS[0].email} / ${CITIZEN_PASSWORD}  (and ${CITIZENS.slice(1).map((c) => c.email).join(', ')})`);
 }
 

@@ -9,7 +9,7 @@ export const HEADER = { 'X-Requested-With': 'XMLHttpRequest' };
 export async function startTestEnvironment() {
   const mongo = await MongoMemoryServer.create();
   process.env.NODE_ENV = 'test';
-  process.env.MONGODB_URI = mongo.getUri('civicfix-test');
+  process.env.MONGODB_URI = mongo.getUri('trackcivic-test');
   process.env.JWT_SECRET = 'test-secret-that-is-long-enough-for-validation-123';
   process.env.CLIENT_ORIGIN = 'http://localhost:5173';
 

@@ -56,7 +56,7 @@ export function loadConfig(source = process.env) {
     jwtExpiresIn: source.JWT_EXPIRES_IN || '1d',
     clientOrigins: parseList(source.CLIENT_ORIGIN, ['http://localhost:5173']),
     cookie: Object.freeze({
-      name: 'civicfix_token',
+      name: 'trackcivic_token',
       secure: cookieSecure,
       sameSite,
       domain: source.COOKIE_DOMAIN || undefined,

@@ -147,7 +147,7 @@ export default function AdminComplaintPanel({ complaint, nextStatuses, onChanged
             type="email"
             label="Staff Login Email"
             maxLength={100}
-            placeholder="e.g. staff@civicfix.local"
+            placeholder="e.g. staff@trackcivic.local"
             value={staffEmail}
             onChange={(e) => setStaffEmail(e.target.value)}
             disabled={rejected}

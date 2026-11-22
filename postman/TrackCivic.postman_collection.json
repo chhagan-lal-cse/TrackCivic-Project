@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "CivicFix API",
-    "description": "CivicFix REST API v1. Run `npm run seed` first so the demo accounts exist. Auth uses an httpOnly cookie that Postman's cookie jar keeps between requests. Every POST/PATCH/DELETE must send the X-Requested-With: XMLHttpRequest header (CSRF guard) - it is preset on every request here. Run the folders in order.",
+    "name": "TrackCivic API",
+    "description": "TrackCivic REST API v1. Run `npm run seed` first so the demo accounts exist. Auth uses an httpOnly cookie that Postman's cookie jar keeps between requests. Every POST/PATCH/DELETE must send the X-Requested-With: XMLHttpRequest header (CSRF guard) - it is preset on every request here. Run the folders in order.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -263,7 +263,7 @@
                 "login"
               ]
             },
-            "description": "Postman stores the civicfix_token cookie automatically.",
+            "description": "Postman stores the trackcivic_token cookie automatically.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"priya@example.com\",\n  \"password\": \"Citizen@123\"\n}",
@@ -1004,7 +1004,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@civicfix.local\",\n  \"password\": \"Admin@12345\"\n}",
+              "raw": "{\n  \"email\": \"admin@trackcivic.local\",\n  \"password\": \"Admin@12345\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

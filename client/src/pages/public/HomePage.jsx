@@ -6,6 +6,22 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { publicService } from '../../services/publicService.js';
 import { CATEGORIES } from '../../utils/constants.js';
 
+const STATUS_STAGE = { 'Pending': 1, 'Under Review': 2, 'In Progress': 3, 'Resolved': 4, 'Rejected': 0 };
+const STATUS_LABEL = { 1: 'Report Filed', 2: 'Under Review', 3: 'Field Crew Active', 4: 'Resolved' };
+const CATEGORY_ICONS = { 'Roads & Potholes': 'bi-cone-striped', 'Streetlights': 'bi-lightning-charge-fill', 'Water Supply': 'bi-droplet-fill', 'Garbage & Sanitation': 'bi-trash3-fill', 'Drainage & Sewage': 'bi-moisture', 'Public Safety': 'bi-shield-exclamation' };
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
 export default function HomePage() {
   useDocumentTitle('Smart Civic Issue Tracking');
   const statsRequest = useAsync(() => publicService.stats(), []);
@@ -13,6 +29,11 @@ export default function HomePage() {
 
   const stats = statsRequest.data;
   const recent = recentRequest.data;
+
+  // Pick the most recently updated complaint for the hero widget
+  const liveComplaint = recent?.[0] || null;
+  const liveStage = liveComplaint ? (STATUS_STAGE[liveComplaint.status] ?? 1) : 0;
+  const liveProgress = liveStage > 0 ? Math.round((liveStage / 4) * 100) : 0;
 
   return (
     <div className="tc-home">
@@ -64,27 +85,131 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="tc-map-panel shadow-lg">
-              <span className="tc-pin" aria-hidden="true" />
-              <article className="tc-report-card shadow">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span className="tc-ref">TC-2026-000214</span>
-                  <span className="cf-badge cf-status-in-progress">
-                    <i className="bi bi-hourglass-split me-1" />In Progress
+            {/* Right-Side Live Data Widget */}
+            <div className="tc-hero-visual-wrap">
+              <div className="tc-radar-panel shadow-lg">
+                {/* Header */}
+                <div className="tc-radar-header d-flex justify-content-between align-items-center mb-3">
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="tc-live-pulse" />
+                    <span className="small fw-bold text-uppercase" style={{ letterSpacing: '0.08em', color: '#0f766e' }}>
+                      Live Updates
+                    </span>
+                  </div>
+                  <span className="badge bg-white text-secondary border shadow-2xs small py-1 px-2">
+                    <i className="bi bi-clock-history text-teal me-1" />
+                    {liveComplaint ? timeAgo(liveComplaint.updatedAt) : 'Loading…'}
                   </span>
                 </div>
-                <h3>Streetlight repair near East Gate</h3>
-                <div className="small text-muted mb-3">
-                  <i className="bi bi-geo-alt-fill text-danger me-1" />Lakeview Colony • Sector 4
+
+                {/* Live Incident Canvas */}
+                <div className="tc-radar-canvas">
+                  {/* Decorative category markers from actual data */}
+                  {recent?.slice(1, 4).map((c, i) => {
+                    const positions = [
+                      { top: '16%', left: '14%' },
+                      { top: '65%', left: '10%' },
+                      { top: '20%', right: '12%' },
+                    ];
+                    const colors = ['marker-amber', 'marker-blue', 'marker-emerald'];
+                    const icon = CATEGORY_ICONS[c.category] || 'bi-exclamation-triangle-fill';
+                    return (
+                      <div key={c.referenceNumber} className={`tc-incident-marker ${colors[i]}`} style={positions[i]} title={`${c.title} (${c.status})`}>
+                        <i className={`bi ${icon}`} />
+                      </div>
+                    );
+                  })}
+
+                  {/* Main Hero Card: Live Complaint */}
+                  {liveComplaint ? (
+                    <article className="tc-hero-card shadow-lg">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span className="cf-ref" style={{ fontSize: '0.82rem', padding: '3px 8px' }}>
+                          {liveComplaint.referenceNumber}
+                        </span>
+                        <span className={`badge px-2 py-1 ${
+                          liveComplaint.status === 'Resolved' ? 'bg-success-subtle text-success-emphasis border-success-subtle' :
+                          liveComplaint.status === 'In Progress' ? 'bg-teal-subtle text-teal-emphasis border border-teal-subtle' :
+                          liveComplaint.status === 'Under Review' ? 'bg-primary-subtle text-primary-emphasis border-primary-subtle' :
+                          liveComplaint.status === 'Rejected' ? 'bg-danger-subtle text-danger-emphasis border-danger-subtle' :
+                          'bg-warning-subtle text-warning-emphasis border-warning-subtle'
+                        }`}>
+                          <i className={`bi ${
+                            liveComplaint.status === 'Resolved' ? 'bi-check-circle-fill' :
+                            liveComplaint.status === 'In Progress' ? 'bi-tools' :
+                            liveComplaint.status === 'Under Review' ? 'bi-search' :
+                            'bi-hourglass-split'
+                          } me-1`} />
+                          {liveComplaint.status}
+                        </span>
+                      </div>
+
+                      <h3 className="h5 fw-bold text-dark mt-2 mb-1">{liveComplaint.title}</h3>
+                      <div className="small text-muted mb-3 d-flex align-items-center gap-1">
+                        <i className="bi bi-geo-alt-fill text-danger" />
+                        {liveComplaint.address}{liveComplaint.city ? `, ${liveComplaint.city}` : ''}
+                      </div>
+
+                      {/* Progress Stepper */}
+                      <div className="tc-stepper-wrap mb-3">
+                        <div className="d-flex justify-content-between small text-muted mb-1 fw-semibold">
+                          <span className="text-teal">{STATUS_LABEL[liveStage] || liveComplaint.status}</span>
+                          <span>Step {liveStage} of 4</span>
+                        </div>
+                        <div className="tc-stepper-bar">
+                          <div className="tc-stepper-fill" style={{ width: `${liveProgress}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Assigned Info */}
+                      <div className="d-flex align-items-center justify-content-between pt-2 border-top small">
+                        <div className="d-flex align-items-center gap-2">
+                          <div
+                            className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+                            style={{ width: 26, height: 26, background: '#0d9488', fontSize: '0.74rem' }}
+                          >
+                            {liveComplaint.category?.[0] || 'T'}
+                          </div>
+                          <span className="text-secondary" style={{ fontSize: '0.82rem' }}>
+                            {liveComplaint.assignedDepartment
+                              ? <>Assigned: <strong>{liveComplaint.assignedDepartment}</strong></>
+                              : <>Category: <strong>{liveComplaint.category}</strong></>
+                            }
+                          </span>
+                        </div>
+                        <span className="badge bg-light text-muted border" style={{ fontSize: '0.72rem' }}>{liveComplaint.priority}</span>
+                      </div>
+                    </article>
+                  ) : (
+                    <article className="tc-hero-card shadow-lg">
+                      <div className="text-center py-4">
+                        <div className="spinner-border spinner-border-sm text-teal mb-2" role="status" />
+                        <p className="small text-muted mb-0">Loading live data…</p>
+                      </div>
+                    </article>
+                  )}
+
+                  {/* Floating badge for 2nd most recent */}
+                  {recent?.[1] && (
+                    <div className="tc-floating-badge shadow">
+                      <div className="d-flex align-items-center gap-2">
+                        <div
+                          className="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0"
+                          style={{ width: 32, height: 32, background: recent[1].status === 'Resolved' ? '#16a34a' : '#0d9488' }}
+                        >
+                          <i className={`bi ${recent[1].status === 'Resolved' ? 'bi-check-lg' : 'bi-arrow-repeat'} fs-5`} />
+                        </div>
+                        <div>
+                          <strong className="d-block small text-dark" style={{ lineHeight: 1.2 }}>{recent[1].title}</strong>
+                          <span className="text-muted" style={{ fontSize: '0.72rem' }}>
+                            {recent[1].city || recent[1].address} • {timeAgo(recent[1].updatedAt)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="tc-progress-bar-wrap mb-2">
-                  <div className="tc-progress-bar-fill" style={{ width: '65%' }} />
-                </div>
-                <div className="d-flex justify-content-between small text-muted">
-                  <span>Assigned: Electrical Division</span>
-                  <span className="fw-semibold text-teal">Step 3 of 4</span>
-                </div>
-              </article>
+              </div>
             </div>
           </div>
         </div>

@@ -132,7 +132,9 @@ export default function AboutPage() {
           <span className="badge bg-white text-dark mb-3 px-3 py-2 fw-semibold">
             <i className="bi bi-people-fill me-1 text-teal" /> Community First
           </span>
-          <h2 className="display-6 fw-bold mb-3">Ready to improve your neighborhood?</h2>
+          <h2 className="display-6 fw-bold text-white mb-3" style={{ color: '#ffffff' }}>
+            Ready to improve your neighborhood?
+          </h2>
           <p className="text-light opacity-75 mx-auto mb-4" style={{ maxWidth: 580 }}>
             Join our open platform to report civic problems, follow real-time maintenance updates, and help build cleaner, safer cities.
           </p>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -28,7 +28,17 @@ const createPinIcon = (color = '#0d9488') => L.divIcon({
   popupAnchor: [0, -36],
 });
 
-export default function LocationPicker({
+/**
+ * LocationPicker — memo-wrapped so parent re-renders (e.g. form field changes)
+ * do NOT destroy and re-create the Leaflet map.
+ *
+ * The map is fully self-contained after mount. `latitude`/`longitude` props are
+ * only used as the INITIAL marker position (read once on mount). All subsequent
+ * interactions (click, drag, GPS, search) update the map internally and call
+ * `onLocationChange` to notify the parent — but incoming prop changes do NOT
+ * re-trigger the map, preventing the refresh-on-state-update loop.
+ */
+const LocationPicker = memo(function LocationPicker({
   latitude,
   longitude,
   onLocationChange,
@@ -38,105 +48,49 @@ export default function LocationPicker({
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
+  // Track last coords set FROM the map so we don't re-process our own callbacks
+  const internalCoordsRef = useRef({ lat: null, lng: null });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [infoMsg, setInfoMsg] = useState('');
+  // Local display state for the footer badge (avoids depending on external props)
+  const [displayCoords, setDisplayCoords] = useState(() => {
+    const hasCoords = latitude !== '' && longitude !== '' &&
+      Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude));
+    return hasCoords ? { lat: Number(latitude), lng: Number(longitude) } : null;
+  });
 
-  const hasCoords = Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude)) && latitude !== '' && longitude !== '';
-  const currentLat = hasCoords ? Number(latitude) : 26.9124; // Default to India (Jaipur / Central)
-  const currentLng = hasCoords ? Number(longitude) : 75.7873;
-  const initialZoom = hasCoords ? 15 : 11;
-
-  // Initialize Leaflet Map
-  useEffect(() => {
-    if (!mapContainerRef.current) return;
-    if (mapInstanceRef.current) return;
-
-    const map = L.map(mapContainerRef.current, {
-      center: [currentLat, currentLng],
-      zoom: initialZoom,
-      zoomControl: true,
-      scrollWheelZoom: !readOnly,
-      dragging: !readOnly,
-    });
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap contributors',
-    }).addTo(map);
-
-    if (hasCoords) {
-      const marker = L.marker([currentLat, currentLng], {
-        icon: createPinIcon(),
-        draggable: !readOnly,
-      }).addTo(map);
-
-      if (!readOnly) {
-        marker.on('dragend', (e) => {
-          const { lat, lng } = e.target.getLatLng();
-          handlePinPlaced(lat, lng, false);
-        });
-      }
-      markerRef.current = marker;
+  // ─── Reverse geocode helper ───────────────────────────────────────────────
+  const reverseGeocode = useCallback(async (lat, lng) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+        { headers: { 'Accept-Language': 'en' } },
+      );
+      if (!res.ok) return { address: '', city: '' };
+      const data = await res.json();
+      if (!data?.address) return { address: '', city: '' };
+      const a = data.address;
+      const city = a.city || a.town || a.district || a.state_district || a.county || '';
+      const address = [a.road || a.suburb || a.neighbourhood, a.residential || a.amenity, city]
+        .filter(Boolean).join(', ');
+      setInfoMsg(`Pinned: ${data.display_name.split(',').slice(0, 3).join(',')}`);
+      return { address, city };
+    } catch {
+      return { address: '', city: '' };
     }
-
-    if (!readOnly) {
-      map.on('click', (e) => {
-        const { lat, lng } = e.latlng;
-        handlePinPlaced(lat, lng, true);
-      });
-    }
-
-    mapInstanceRef.current = map;
-
-    // Fix map tile rendering after mounting
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 250);
-
-    return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-    };
   }, []);
 
-  // Update marker position if props change externally
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
-    if (hasCoords) {
-      const lat = Number(latitude);
-      const lng = Number(longitude);
-
-      if (markerRef.current) {
-        markerRef.current.setLatLng([lat, lng]);
-      } else {
-        const marker = L.marker([lat, lng], {
-          icon: createPinIcon(),
-          draggable: !readOnly,
-        }).addTo(map);
-
-        if (!readOnly) {
-          marker.on('dragend', (e) => {
-            const pos = e.target.getLatLng();
-            handlePinPlaced(pos.lat, pos.lng, false);
-          });
-        }
-        markerRef.current = marker;
-      }
-    } else if (markerRef.current) {
-      map.removeLayer(markerRef.current);
-      markerRef.current = null;
-    }
-  }, [latitude, longitude, readOnly]);
-
-  const handlePinPlaced = async (lat, lng, moveMarker = true) => {
+  // ─── Place / move marker and notify parent ────────────────────────────────
+  const handlePinPlaced = useCallback(async (lat, lng, moveMarker = true) => {
     const fixedLat = Number(lat.toFixed(6));
     const fixedLng = Number(lng.toFixed(6));
+
+    // Remember these coords so the external-prop effect won't loop
+    internalCoordsRef.current = { lat: fixedLat, lng: fixedLng };
 
     const map = mapInstanceRef.current;
     if (map) {
@@ -156,40 +110,79 @@ export default function LocationPicker({
     }
 
     setInfoMsg(`Location pinned at ${fixedLat}, ${fixedLng}`);
+    setDisplayCoords({ lat: fixedLat, lng: fixedLng });
 
-    // Reverse geocode via OpenStreetMap Nominatim
-    let detectedAddress = '';
-    let detectedCity = '';
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${fixedLat}&lon=${fixedLng}`, {
-        headers: { 'Accept-Language': 'en' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.address) {
-          const a = data.address;
-          detectedCity = a.city || a.town || a.district || a.state_district || a.county || '';
-          detectedAddress = [a.road || a.suburb || a.neighbourhood, a.residential || a.amenity, detectedCity]
-            .filter(Boolean)
-            .join(', ');
-          setInfoMsg(`Pinned: ${data.display_name.split(',').slice(0, 3).join(',')}`);
-        }
-      }
-    } catch {
-      // Ignore network errors for geocoding
-    }
+    const { address, city } = await reverseGeocode(fixedLat, fixedLng);
 
     if (onLocationChange) {
       onLocationChange({
         latitude: String(fixedLat),
         longitude: String(fixedLng),
-        address: detectedAddress,
-        city: detectedCity,
+        address,
+        city,
       });
     }
-  };
+  }, [readOnly, onLocationChange, reverseGeocode]);
 
-  const handleUseCurrentLocation = () => {
+  // ─── Initialize Leaflet Map (runs ONCE on mount) ─────────────────────────
+  useEffect(() => {
+    if (!mapContainerRef.current || mapInstanceRef.current) return;
+
+    const hasInitialCoords = latitude !== '' && longitude !== '' &&
+      Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude));
+    const initLat = hasInitialCoords ? Number(latitude) : 26.9124;
+    const initLng = hasInitialCoords ? Number(longitude) : 75.7873;
+    const initZoom = hasInitialCoords ? 15 : 11;
+
+    const map = L.map(mapContainerRef.current, {
+      center: [initLat, initLng],
+      zoom: initZoom,
+      zoomControl: true,
+      scrollWheelZoom: !readOnly,
+      dragging: !readOnly,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors',
+    }).addTo(map);
+
+    if (hasInitialCoords) {
+      const marker = L.marker([initLat, initLng], {
+        icon: createPinIcon(),
+        draggable: !readOnly,
+      }).addTo(map);
+      if (!readOnly) {
+        marker.on('dragend', (e) => {
+          const { lat, lng } = e.target.getLatLng();
+          handlePinPlaced(lat, lng, false);
+        });
+      }
+      markerRef.current = marker;
+      internalCoordsRef.current = { lat: initLat, lng: initLng };
+    }
+
+    if (!readOnly) {
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        handlePinPlaced(lat, lng, true);
+      });
+    }
+
+    mapInstanceRef.current = map;
+
+    setTimeout(() => { map.invalidateSize(); }, 250);
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+      markerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — map is initialized ONCE
+
+  // ─── GPS current location ─────────────────────────────────────────────────
+  const handleUseCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setInfoMsg('Your browser does not support GPS location.');
       return;
@@ -202,9 +195,7 @@ export default function LocationPicker({
         const lng = pos.coords.longitude;
         setLocating(false);
         const map = mapInstanceRef.current;
-        if (map) {
-          map.flyTo([lat, lng], 16, { duration: 1.2 });
-        }
+        if (map) map.flyTo([lat, lng], 16, { duration: 1.2 });
         handlePinPlaced(lat, lng, true);
       },
       (err) => {
@@ -213,9 +204,10 @@ export default function LocationPicker({
       },
       { timeout: 12000, enableHighAccuracy: true },
     );
-  };
+  }, [handlePinPlaced]);
 
-  const handleSearch = async (e) => {
+  // ─── Search ───────────────────────────────────────────────────────────────
+  const handleSearch = useCallback(async (e) => {
     if (e) e.preventDefault();
     const query = searchQuery.trim();
     if (!query) return;
@@ -225,49 +217,52 @@ export default function LocationPicker({
     setInfoMsg('Searching places…');
 
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`, {
-        headers: { 'Accept-Language': 'en' },
-      });
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
+        { headers: { 'Accept-Language': 'en' } },
+      );
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {
-          setSearchResults(data);
-          // Auto select first result
-          const first = data[0];
-          selectSearchResult(first);
+          if (data.length === 1) {
+            selectSearchResult(data[0]);
+          } else {
+            setSearchResults(data);
+            selectSearchResult(data[0]);
+          }
         } else {
-          setInfoMsg('No matching location found. Try searching a major landmark or city.');
+          setInfoMsg('No matching location found. Try a major landmark or city.');
         }
       }
     } catch {
-      setInfoMsg('Search error. You can click directly on the map to drop the pin.');
+      setInfoMsg('Search error. Click on the map to drop a pin instead.');
     } finally {
       setSearching(false);
     }
-  };
+  }, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selectSearchResult = (item) => {
+  const selectSearchResult = useCallback((item) => {
     const lat = parseFloat(item.lat);
     const lng = parseFloat(item.lon);
     setSearchResults([]);
     setSearchQuery(item.display_name.split(',')[0]);
     const map = mapInstanceRef.current;
-    if (map) {
-      map.flyTo([lat, lng], 15, { duration: 1.2 });
-    }
+    if (map) map.flyTo([lat, lng], 15, { duration: 1.2 });
     handlePinPlaced(lat, lng, true);
-  };
+  }, [handlePinPlaced]);
 
-  const clearPin = () => {
+  const clearPin = useCallback(() => {
     if (markerRef.current && mapInstanceRef.current) {
       mapInstanceRef.current.removeLayer(markerRef.current);
       markerRef.current = null;
     }
+    internalCoordsRef.current = { lat: null, lng: null };
     setInfoMsg('');
-    if (onLocationChange) {
-      onLocationChange({ latitude: '', longitude: '' });
-    }
-  };
+    setDisplayCoords(null);
+    if (onLocationChange) onLocationChange({ latitude: '', longitude: '' });
+  }, [onLocationChange]);
+
+  const hasCoords = displayCoords !== null;
 
   return (
     <div className="tc-location-picker">
@@ -368,7 +363,7 @@ export default function LocationPicker({
           {hasCoords ? (
             <span className="badge bg-teal-subtle text-teal-emphasis border border-teal-subtle px-2 py-1">
               <i className="bi bi-check2-circle me-1" />
-              Pin Placed: {Number(latitude).toFixed(4)}°, {Number(longitude).toFixed(4)}°
+              Pin Placed: {displayCoords.lat.toFixed(4)}°, {displayCoords.lng.toFixed(4)}°
             </span>
           ) : (
             <span className="text-secondary">
@@ -381,4 +376,6 @@ export default function LocationPicker({
       </div>
     </div>
   );
-}
+});
+
+export default LocationPicker;

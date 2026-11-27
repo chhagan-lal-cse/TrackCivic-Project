@@ -3,6 +3,9 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { getConfig } from './config/env.js';
 import { isDbConnected } from './config/db.js';
 import apiRoutes from './routes/index.js';
@@ -11,6 +14,9 @@ import { apiLimiter } from './middleware/rateLimit.js';
 import { requireClientHeader, requireDatabase, sanitizeRequest } from './middleware/security.js';
 import { cleanupUploadOnError } from './middleware/upload.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export function createApp() {
   const config = getConfig();
   const app = express();
@@ -18,7 +24,21 @@ export function createApp() {
   app.disable('x-powered-by');
   if (config.trustProxy) app.set('trust proxy', 1);
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          connectSrc: ["'self'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
   app.use(
     cors({
       origin(origin, cb) {
@@ -50,6 +70,16 @@ export function createApp() {
   });
 
   app.use('/api/v1', apiLimiter(), requireClientHeader, requireDatabase, sanitizeRequest, apiRoutes);
+
+  // Single-server fullstack mode: Serve built React client if available
+  const clientDist = process.env.CLIENT_DIST_PATH || path.resolve(__dirname, '../../client/dist');
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
+      res.sendFile(path.join(clientDist, 'index.html'));
+    });
+  }
 
   app.use(notFound);
   app.use(cleanupUploadOnError);
